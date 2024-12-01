@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="category">
+	  
+	<select id="dataCount" parameterType="map" resultType="Integer">
+		SELECT NVL(COUNT(*), 0)
+		FROM recipe p
+		JOIN member m ON p.userId=m.userId	
+	</select>
+	
+	
+	<select id="listCategory" parameterType="map" resultType="com.sp.yorizori.category.Category">
+
+		SELECT DISTINCT a.recipeNum, a.userId, userName, a.recipeSubject, a.recipeTime, m.nickName nickName,
+			   b.recipePhotoName, NVL(likeCount, 0) likeCount, recipeReg_date, memberImageName
+		 from recipe a
+		 join member m ON a.userId=m.userId	
+		 left outer join recipePhoto b on a.recipeNum = b.recipeNum
+		 left outer join (
+		    select recipeNum, count(*) likeCount
+		    from recipeLike 
+		    group by recipeNum
+		 ) c on a.recipeNum = c.recipeNum
+		 left outer join (
+		 	select d.recipeNum, d.ingredientCode
+		 	from ingredientList d
+		 ) d on a.recipeNum = d.recipeNum
+		 left outer join (
+		 	select e.ingredientCode, e.parent
+		 	from ingredient e
+		 ) e on d.ingredientCode = e.ingredientCode
+		 left outer join(
+		 	select userId, memberImageName FROM memberImage mi
+		 ) mi on mi.userId = m.userId
+	
+		 <where>
+		 	<if test="caseNum != null">
+		 		a.caseNum IN
+		 		<foreach collection="caseNum" item="item" separator="," open="(" close=")">
+		 			#{item}
+		 		</foreach>
+		 	</if>
+		 	<if test="countryNum != null">
+		 		AND a.countryNum IN
+		 		<foreach collection="countryNum" item="item" separator="," open="(" close=")">
+		 			#{item}
+		 		</foreach>
+		 	</if>
+		 	<if test="recipeLevel != null">
+		 		AND a.recipeLevel IN
+		 		<foreach collection="recipeLevel" item="item" separator="," open="(" close=")">
+		 			#{item}
+		 		</foreach>
+		 	</if>
+		 	<if test="parent != null">
+		 		AND e.parent IN
+		 		<foreach collection="parent" item="item" separator="," open="(" close=")">
+		 			#{item}
+		 		</foreach>
+		 	</if>
+<!-- 		 	<if test="recipeTime != null">
+		 		AND a.recipeTime IN
+		 		<foreach collection="recipeTime" item="item" separator="," open="(" close=")">
+		 			#{item}
+		 		</foreach>
+		 	</if> -->
+ 		 	<if test="recipeTime != null">
+		 		AND a.recipeTime &lt; ${recipeTime}
+		 	</if> 
+		 </where>
+
+		<if test="sortField == 'rnk'">
+		 		order by likeCount desc
+		 	</if>
+		<if test="sortField == 'date'">
+		 		order by recipeReg_date desc
+	 	</if>
+		 	
+	</select>
+	
+	
+	
+	
+
+
+
+</mapper>

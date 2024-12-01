@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="foodClass">
+	<select id="classSeq" resultType="Integer">
+		SELECT classTable_seq.NEXTVAL FROM dual
+	</select>
+	
+	<select id="classCategory" parameterType="map" resultType="com.sp.yorizori.foodclass.FoodClass">
+		SELECT class_Category, classCname FROM classCategory
+			ORDER BY class_Category
+	</select>
+	
+	<insert id="insertClass" parameterType="com.sp.yorizori.foodclass.FoodClass">
+		INSERT INTO classTable(classCode, classSubject, price, class_category, classServing, classContent, videoTime, classHitCount, classReg_date, userId)
+			VALUES (#{classCode}, #{classSubject}, #{price}, #{category}, #{serving}, #{classContent}, #{videoTime}, 0, SYSDATE, #{userId})
+	</insert>
+	
+	<select id="listClass" parameterType="map" resultType="com.sp.yorizori.foodclass.FoodClass">
+		SELECT * FROM (
+			SELECT ROWNUM rnum, tb.* FROM (
+		        SELECT c.classCode, classSubject, m.nickname, price, 
+		            NVL(followCount, 0) followCount, classPhotoName imageFileName, NVL(userClassLike, 0) userClassLike
+		        FROM classTable c
+		        JOIN member m ON c.userId = m.userId
+		        LEFT OUTER JOIN (
+		          SELECT cf.classcode, classPhotoName FROM classFile cf 
+		        ) cf ON c.classCode = cf.classCode
+		        LEFT OUTER JOIN (
+		            SELECT following_id, COUNT(*) followCount 
+		            FROM follow f
+		            JOIN member m ON f.following_id=m.userId
+		            WHERE following_id = m.userId
+		            GROUP BY following_id
+		        ) f ON c.userId = f.following_id
+		        LEFT OUTER JOIN (
+		            SELECT l.classCode, COUNT(*) userClassLike
+		            FROM classLike l
+		            WHERE userId = #{userId}
+		            GROUP BY l.classCode
+		        ) l ON c.classCode = l.classCode
+				<where>
+					<if test="category!=0">
+						(c.class_Category = #{category} )
+					</if>
+				</where>
+				ORDER BY NVL(followCount, 0) DESC
+			) tb WHERE ROWNUM &lt;= #{end}
+		) WHERE rnum &gt;= #{start}
+	</select>
+	
+	<select id="dataCount" parameterType="map" resultType="Integer">
+		SELECT NVL(COUNT(*), 0)
+		FROM classTable
+	</select>
+	
+	
+	<select id="readClass" parameterType="Integer" resultType="com.sp.yorizori.foodclass.FoodClass">
+		SELECT c.classCode, c.userId, m.nickname, memberImageName, classSubject, price, classContent, classHitcount, 
+		    TO_CHAR(classReg_date, 'YYYY.MM.DD') classReg_date, classServing serving, videoTime, 
+		    classPhotoName imageFileName, previewName previewFileName, fullVideoName videoFileName
+		FROM classTable c
+		JOIN member m ON c.userId = m.userId
+		JOIN classFile cf ON c.classCode = cf.classCode
+		LEFT OUTER JOIN (
+		    SELECT userId, memberImageName FROM memberImage 
+		) mi ON mi.userId = c.userId
+		WHERE c.classCode = #{classCode}
+	</select>
+	
+	<update id="updateHitCount" parameterType="Integer">
+		UPDATE classTable SET classHitcount = classHitCount+1 WHERE classCode = #{classCode}
+	</update>
+	
+	<select id="classLikeCount" resultType="Integer">
+		SELECT NVL(COUNT(*), 0) classLikeCount FROM classLike WHERE classCode = #{classCode}
+	</select>
+	
+	<select id="userClassLike" parameterType="map" resultType="Integer">
+		SELECT NVL(COUNT(*), 0) FROM classLike WHERE classCode = #{classCode} AND userId = #{userId}
+	</select>
+	
+	<insert id="insertClassLike" parameterType="map">
+		INSERT INTO classLike(classCode, userId) VALUES (#{classCode}, #{userId})
+	</insert>
+	
+	<delete id="deleteClassLike" parameterType="map">
+		DELETE FROM classLike WHERE classCode = #{classCode} AND userId = #{userId}
+	</delete>
+	
+	<insert id="insertFile" parameterType="com.sp.yorizori.foodclass.FoodClass">
+		INSERT INTO classFile(classCode, classPhotoName, previewName, fullVideoName)
+			VALUES (#{classCode}, #{imageFileName, jdbcType=VARCHAR}, #{previewFileName, jdbcType=VARCHAR}, #{videoFileName, jdbcType=VARCHAR})
+	</insert>
+	
+	<select id="listFile" parameterType="Integer" resultType="com.sp.yorizori.foodclass.FoodClass">
+		SELECT classPhotoName imageFileName, previewName previewFileName, fullVideoName videoFileName
+		FROM classFile
+		WHERE classCode = #{classCode}
+	</select>
+	
+	<select id="readReview" parameterType="map" resultType="com.sp.yorizori.mypage.MyClass">
+		SELECT * FROM (
+			SELECT ROWNUM rnum, tb.* FROM (
+				SELECT reviewNum, nickname, reviewContent, reviewStar, userId
+				FROM review r
+				LEFT OUTER JOIN (
+				    SELECT od.userId, m.nickname, orderCode FROM ordering od
+				    JOIN member m ON od.userId = m.userId
+				) o ON o.orderCode = r.orderCode
+				WHERE classCode = #{classCode}
+				ORDER BY reviewNum DESC
+			) tb WHERE ROWNUM &lt;= #{end}
+		) WHERE rnum &gt;= #{start}				
+	</select>
+	
+	<select id="reviewCount" parameterType="map" resultType="Integer">
+		SELECT NVL(COUNT(*), 0) FROM review WHERE classCode = #{classCode}
+	</select>
+</mapper>

@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="event">
+	<select id="seq" resultType="Integer">
+		SELECT event_seq.NEXTVAL FROM dual
+	</select>
+	
+	<insert id="insertEvent" parameterType="com.sp.yorizori.event.Event">
+		INSERT INTO event(eventNum, subject, eventContent, startTime, expireTime)
+		VALUES (#{eventNum}, #{subject}, #{eventContent}, #{startTime}, #{expireTime})
+	</insert>
+	
+	<sql id="where-list">
+		<choose>
+			<when test="menu == 'ing'">
+				( startTime &lt; SYSDATE	
+					AND expireTIme &gt; SYSDATE )
+			</when>
+			<otherwise>
+				expireTIme &lt; SYSDATE
+			</otherwise>
+		</choose>
+	</sql>
+	
+	<sql id="order-list">
+		<choose>
+			<when test="menu == 'ing'">
+				ORDER BY expireTIme ASC, startTime ASC
+			</when>
+			<otherwise>
+				ORDER BY expireTIme DESC, startTime DESC
+			</otherwise>
+		</choose>
+	</sql>
+	
+	<select id="dataCount" parameterType="map" resultType="Integer">
+		SELECT NVL(COUNT(*), 0)
+		FROM event
+		<where>
+			<if test="menu != null and menu != ''">
+				<include refid="where-list"/>
+			</if>
+		</where>
+	</select>
+	
+	<select id="listEvent" parameterType="map" resultType="com.sp.yorizori.event.Event">
+		SELECT * FROM (
+			SELECT ROWNUM rnum, tb.* FROM (
+				SELECT e.eventNum, e.subject, 
+					TO_CHAR(e.startTime, 'YYYY-MM-DD') startTime, 
+					TO_CHAR(e.expireTIme, 'YYYY-MM-DD') expireTIme,
+					ei.eventName
+				FROM event e
+				LEFT OUTER JOIN 
+ 				(
+                    SELECT eventNum
+                    , min(eventName) as eventName
+                    FROM eventImage
+                    GROUP BY eventNum
+                )ei
+				ON e.eventnum = ei.eventnum
+				<where>
+					<if test="menu != null and menu != ''">
+						<include refid="where-list"/>
+					</if>
+				</where>
+				<include refid="order-list"/>
+			) tb WHERE ROWNUM &lt;= #{end}
+		) WHERE rnum &gt;= #{start}	
+	</select>
+	
+	<select id="readEvent" parameterType="Integer" resultType="com.sp.yorizori.event.Event">
+		SELECT eventNum, subject, eventContent, 
+		TO_CHAR(startTime, 'YYYY-MM-DD')startTime, 
+		TO_CHAR(expireTime, 'YYYY-MM-DD')expireTime
+		FROM event
+		WHERE eventNum = #{eventNum}
+	</select>
+	
+	<update id="updateEvent" parameterType="com.sp.yorizori.event.Event">
+		UPDATE event SET subject=#{subject}, eventContent=#{eventContent},
+			startTime = #{startTime}, expireTime = #{expireTime}
+		WHERE eventNum = #{eventNum}
+	</update>
+	
+	<delete id="deleteEvent" parameterType="Integer">
+		DELETE FROM event WHERE eventNum = #{eventNum}
+	</delete>
+	
+	<insert id="insertFile" parameterType="com.sp.yorizori.event.Event">
+		INSERT INTO eventImage(eventPhotoNum, eventNum, eventName)
+		VALUES (festivalPhoto_seq.NEXTVAL, #{eventNum}, #{fileName})
+	</insert>
+	
+	<select id="listFile" parameterType="Integer" resultType="com.sp.yorizori.event.Event">
+		SELECT eventPhotoNum fileNum, eventName fileName
+		FROM eventImage
+		WHERE eventNum = #{eventNum}
+	</select>
+	
+	<select id="searchFile" parameterType="Integer" resultType="com.sp.yorizori.event.Event">
+		SELECT ROWNUM rnum, tb.* FROM (
+		    SELECT eventName fileName
+		    FROM eventImage
+		    WHERE eventNum = #{eventNum}
+		    ORDER BY eventPhotoNum
+		) tb WHERE ROWNUM = 1
+	</select>
+	
+	<select id="readFile" parameterType="Integer" resultType="com.sp.yorizori.event.Event">
+		SELECT eventPhotoNum fileNum, eventName fileName
+		FROM eventImage
+		WHERE eventPhotoNum = #{fileNum}
+	</select>
+	
+	<delete id="deleteFile" parameterType="map">
+		DELETE FROM eventImage WHERE ${field} = #{eventNum}
+	</delete>
+	
+</mapper>

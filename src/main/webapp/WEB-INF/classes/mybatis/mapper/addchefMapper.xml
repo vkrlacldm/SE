@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd"> 
+<mapper namespace="addchef">
+
+    <insert id="insertAddchef" parameterType="com.sp.yorizori.addchef.Addchef">
+		INSERT INTO chefApply(userId, reg_date, intro, accept)
+		VALUES(#{userId}, SYSDATE, #{intro}, 1)
+    </insert>
+    
+	<select id="readAddchef" parameterType="String" resultType="com.sp.yorizori.addchef.Addchef">
+		SELECT accept, a.userId, reg_date, intro
+		FROM addchef a
+		WHERE a.userId = #{userId}
+	</select>  
+
+    <update id="updateAccept" parameterType="map">
+		UPDATE addchef SET accept = #{accept}
+		WHERE userId=#{userId}
+    </update>
+</mapper>
+

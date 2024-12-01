@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="recipeNotify">
+	<insert id="insertnotifyPost" parameterType="com.sp.yorizori.recipe.Notify">
+		INSERT into notifyPost  (recipeNum, userId, reason, notify_date, reg_date) 
+   			VALUES 
+        ( #{recipeNum}, #{userId}, #{reason}, SYSDATE, null )
+	</insert>
+	
+	<select id="isrecipenotifyPost" parameterType="map" resultType="Integer">
+		SELECT NVL(COUNT(*), 0) FROM notifyPost WHERE recipeNum = #{recipeNum} AND userId = #{userId}
+	</select>
+	
+	<!-- 댓글 신고 -->
+	<insert id="insertnotifyReply" parameterType="com.sp.yorizori.recipe.Notify">
+		INSERT INTO notifyReply 
+		(recipeNum, recipeCommentNum, userId, reason, notify_date) 
+			VALUES 
+		(#{recipeNum}, #{recipeCommentNum}, #{userId}, #{replyreason, jdbcType=VARCHAR}, SYSDATE)
+	</insert>
+</mapper>

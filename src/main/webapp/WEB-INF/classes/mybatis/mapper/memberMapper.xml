@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd"> 
+<mapper namespace="member">
+
+	<select id="loginMember" parameterType="String" resultType="com.sp.yorizori.member.Member">
+		SELECT userId, userName, userPwd, nickName, role, countryNum, email
+		FROM member
+		WHERE userId = #{userId} AND enabled != 0
+	</select>
+
+	<update id="updateLastLogin" parameterType="String">
+		UPDATE member SET last_login = SYSDATE, failure_cnt = 0
+		WHERE userId=#{userId}
+	</update>
+	
+    <select id="memberSeq" resultType="Long">
+       SELECT member_seq.NEXTVAL FROM dual 
+    </select>
+    
+	<!--  
+    <insert id="insertMember" parameterType="Long">
+		INSERT INTO member(userId, role) VALUES (#{userId}, 1) 
+    </insert>
+	-->
+	
+    <insert id="insertMember" parameterType="com.sp.yorizori.member.Member">
+		INSERT INTO member(userId, userName, role, nickName, userPwd, enabled, register_date, modify_date, failure_cnt, birth, email, tel, zip, addr1, addr2, countryNum)
+		VALUES (#{userId}, #{userName}, 1, #{nickName}, #{userPwd}, 1, SYSDATE, SYSDATE, 0, #{birth}, #{email}, #{tel}, 
+			#{zip, jdbcType=VARCHAR}, #{addr1, jdbcType=VARCHAR}, 
+			#{addr2, jdbcType=VARCHAR}, #{countryNum}) 
+    </insert>
+    
+	<!--  
+    <insert id="insertMember2" parameterType="com.sp.yorizori.member.Member">
+		INSERT INTO member(userId, birth, email, tel, zip, addr1, addr2)
+		VALUES (#{userId}, #{birth}, #{email}, #{tel}, 
+			#{zip, jdbcType=VARCHAR}, #{addr1, jdbcType=VARCHAR}, 
+			#{addr2, jdbcType=VARCHAR})
+    </insert>
+	-->
+	
+    <update id="insertMember12" parameterType="com.sp.yorizori.member.Member">
+		INSERT ALL
+		INTO member(userId, userName, nickName, userPwd, enabled, 
+			register_date, modify_date, failure_cnt, birth, email, tel, zip, addr1, addr2, countryNum)
+		VALUES (#{userId}, #{userName}, #{nickName}, #{userPwd}, 1, SYSDATE, SYSDATE, 0, #{birth}, #{email}, #{tel}, 
+			#{zip, jdbcType=VARCHAR}, #{addr1, jdbcType=VARCHAR}, 
+			#{addr2, jdbcType=VARCHAR}, #{countryNum})
+		SELECT * FROM dual     
+    </update>
+	
+	<!-- 회원정보 읽기 -->
+	<select id="readMember" parameterType="String" resultType="com.sp.yorizori.member.Member">
+		SELECT m.userId, userPwd, nickName, userName, tel, TO_CHAR(birth, 'YYYY-MM-DD') birth, addr1, addr2, email,
+			countryNum, zip, enabled, modify_date, memberImageName imageFilename FROM member m
+			LEFT OUTER JOIN (
+				SELECT userId, memberImageName FROM memberImage mi
+			) mi ON m.userId = mi.userId 
+		WHERE m.userId = #{userId}
+	</select>
+	
+    <!-- 회원정보 수정  --> 
+    <update id="updateMember" parameterType="com.sp.yorizori.member.Member">
+		UPDATE member SET
+		    userPwd = #{userPwd},
+		    nickName = #{nickName},
+		    userName = #{userName},
+		    tel = #{tel},
+		    birth = #{birth},
+		    addr1 = #{addr1},
+		    addr2 = #{addr2},
+		    email = #{email},
+		    countryNum = #{countryNum},
+		    zip = #{zip},
+		    modify_date = SYSDATE
+		WHERE userId = #{userId}
+    </update>
+    
+    <!-- 회원 사진 -->
+    <insert id="insertMemberPhoto" parameterType="com.sp.yorizori.member.Member">
+    	INSERT INTO memberImage (userId, memberImageName) VALUES (#{userId}, #{imageFilename, jdbcType=VARCHAR})
+    </insert>
+    
+   	<!-- 회원사진 읽기 -->
+    <select id="isMemberPhoto" parameterType="map" resultType="Integer">
+    	SELECT NVL(COUNT(*), 0) FROM memberImage WHERE userId = #{userId}
+    </select>
+    
+    <!-- 회원사진 삭제 -->
+    <delete id="deleteMemberPhoto" parameterType="String">
+    	DELETE FROM memberImage WHERE userId = #{userId}
+    </delete>
+    
+    <!-- 회원사진 수정 -->
+    <update id="updateMemberPhoto" parameterType="com.sp.yorizori.member.Member">
+    	UPDATE memberImage SET memberImageName = #{imageFilename, jdbcType=VARCHAR} WHERE userId = #{userId}
+    </update>
+    
+    <!-- 회원 탈퇴(상태값만 변경)  -->    
+    <update id="deleteMember" parameterType="String">
+		UPDATE member SET enabled = 0 WHERE userId = #{userId}
+    </update>
+    
+</mapper>

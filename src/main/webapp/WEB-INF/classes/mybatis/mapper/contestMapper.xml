@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="contest">
+	<select id="seq" resultType="Integer">
+		SELECT contest_seq.NEXTVAL FROM dual
+	</select>
+
+	<insert id="insertContest" parameterType="com.sp.yorizori.contest.Contest">
+		INSERT INTO contest(contestNum, subject, contestContent, posterName, start_date, end_date) 
+		VALUES (#{contestNum}, #{subject}, #{contestContent}, #{posterName}, #{start_date}, #{end_date})
+	</insert>
+	
+	<sql id="where-list">
+		<choose>
+			<when test="menu == 'ing'">
+				( start_date &lt; SYSDATE	
+					AND end_date &gt; SYSDATE )
+			</when>
+			<otherwise>
+				end_date &lt; SYSDATE
+			</otherwise>
+		</choose>
+	</sql>
+	
+	<sql id="order-list">
+		<choose>
+			<when test="menu == 'ing'">
+				ORDER BY end_date ASC, start_date ASC
+			</when>
+			<otherwise>
+				ORDER BY end_date DESC, start_date DESC
+			</otherwise>
+		</choose>
+	</sql>
+	
+	<select id="dataCount" parameterType="map" resultType="Integer">
+		SELECT NVL(COUNT(*), 0)
+		FROM contest
+		<where>
+			<if test="menu != null and menu != ''">
+				<include refid="where-list"/>
+			</if>
+		</where>
+	</select>
+	
+	<select id="listContest" parameterType="map" resultType="com.sp.yorizori.contest.Contest">
+		SELECT * FROM (
+			SELECT ROWNUM rnum, tb.* FROM (
+				SELECT contestNum, subject, contestContent, posterName, 
+				TO_CHAR(start_date, 'YYYY-MM-DD') start_date, TO_CHAR(end_date, 'YYYY-MM-DD') end_date		
+				FROM contest
+				<where>
+					<if test="menu != null and menu != ''">
+						<include refid="where-list"/>
+					</if>
+				</where>
+				<include refid="order-list"/>
+			) tb WHERE ROWNUM &lt;= #{end}
+		) WHERE rnum &gt;= #{start}
+	</select>
+	
+	<select id="readContest" parameterType="Integer" resultType="com.sp.yorizori.contest.Contest">
+		SELECT contestNum, subject, contestContent, 
+		TO_CHAR(start_date, 'YYYY-MM-DD')start_date, 
+		TO_CHAR(end_date, 'YYYY-MM-DD')end_date
+		FROM contest
+		WHERE contestNum = #{contestNum}
+	</select>
+	
+	<update id="updateContest" parameterType="com.sp.yorizori.contest.Contest">
+		UPDATE contest SET subject=#{subject}, contestContent=#{contestContent},
+			start_date = #{start_date}, end_date = #{end_date}
+		WHERE contestNum = #{contestNum}
+	</update>
+	
+	<delete id="deleteContest" parameterType="Integer">
+		DELETE FROM contest WHERE contestNum = #{contestNum}
+	</delete>
+	
+
+</mapper>

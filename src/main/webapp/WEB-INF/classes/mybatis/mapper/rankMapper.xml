@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="rank">
+	<select id="rankRecipe" resultType="com.sp.yorizori.rank.RankRecipe">
+		SELECT * FROM (
+		    SELECT ROWNUM rnum, tb.* FROM (
+		        SELECT r.recipeNum num, r.userId userId, recipeSubject subject, recipePhotoName, 
+		            NVL(likeCount, 0) likeCount, nickName, memberImageName userImageName
+		        FROM recipe r
+		        LEFT OUTER JOIN (
+		            SELECT p.recipeNum, recipePhotoName
+		            FROM recipePhoto p
+		        ) p ON r.recipeNum = p.recipeNum
+		        LEFT OUTER JOIN (
+		            SELECT l.recipeNum, COUNT(*) likeCount
+		            FROM recipeLike l
+		            GROUP BY l.recipeNum
+		        ) l ON r.recipeNum = l.recipeNum
+		        LEFT OUTER JOIN (
+		            SELECT m.userId, nickName
+		            FROM member m
+		        ) m ON r.userId = m.userId
+		        LEFT OUTER JOIN (
+		            SELECT i.userId, memberImageName
+		            FROM memberImage i
+		        ) i ON r.userId = i.userId
+		        ORDER BY likeCount DESC
+		    ) tb WHERE ROWNUM &lt;= 100
+		) WHERE rnum &gt;= 1 ORDER BY rnum ASC
+	</select>
+	
+	<select id="rankChef" resultType="com.sp.yorizori.rank.RankChef">
+		SELECT * FROM (
+		    SELECT ROWNUM rnum, tb.* FROM (
+		        SELECT m.userId, nickName, role, memberImageName userImageName, NVL(followCount, 0) followCount
+		        FROM member m
+		        LEFT OUTER JOIN (
+		            SELECT i.userId, memberImageName
+		            FROM memberImage i
+		        ) i ON m.userId = i.userId
+		        LEFT OUTER JOIN (
+		            SELECT following_id, COUNT(*) followCount
+		            FROM follow f
+		            GROUP BY following_id
+		        ) f ON m.userId = following_id
+		        WHERE role = 2
+		        ORDER BY followCount DESC
+		    ) tb WHERE ROWNUM &lt;= 100
+		) WHERE rnum &gt;= 1 ORDER BY rnum ASC
+	</select>
+</mapper>

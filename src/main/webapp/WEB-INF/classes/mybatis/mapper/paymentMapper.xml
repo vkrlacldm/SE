@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="payment">
+	
+	<!-- 결제 시퀀스 -->
+	<select id="paymentseq" resultType="Integer">
+		SELECT ordering_seq.NEXTVAL FROM dual
+	</select>
+	
+	<!-- 결제 대기 -->
+	<insert id="insertpayment" parameterType="com.sp.yorizori.payment.Payment">
+		INSERT INTO orderDetail (classCode, orderCode, price) 
+			VALUES (#{classCode}, #{orderCode}, #{price})
+	</insert>
+	
+	<insert id="insertOrdering" parameterType="com.sp.yorizori.payment.Payment">
+		INSERT INTO ordering (orderCode, orderEnroll, totalPrice, couponuse, userId) 
+			VALUES (#{orderCode}, SYSDATE, #{price}, #{discountprice, jdbcType=VARCHAR}, #{userId})
+	</insert>
+	
+	<update id="useCoupon" parameterType="com.sp.yorizori.payment.Payment">
+		UPDATE userCoupon SET orderCode = #{orderCode} WHERE eventNum = #{eventNum}
+	</update>
+	
+	<!-- 결제, 구매자 테이블 읽기 -->
+	<select id="readOrder" parameterType="Integer" resultType="com.sp.yorizori.payment.Payment">
+		SELECT o.orderCode, classCode, classSubject, totalPrice price, email, userName, tel, addr1, zip, couponName
+		    FROM ordering o
+		    LEFT OUTER JOIN (
+		        SELECT userId, email, userName, tel, addr1, zip 
+		        FROM member m
+		    )m ON m.userId = o.userId
+		    LEFT OUTER JOIN (
+		        SELECT od.classCode, od.orderCode, od.price, classSubject FROM orderDetail od
+		            JOIN classTable ct ON ct.classCode = od.classCode 
+		    )od ON o.orderCode = od.orderCode
+		    LEFT OUTER JOIN (
+		        SELECT uc.eventNum, userId, ordercode, couponName FROM userCoupon uc
+		            JOIN coupon c ON uc.eventNum = c.eventNum
+		    ) uc ON uc.orderCode = o.orderCode
+		WHERE o.orderCode = #{orderCode}
+	</select>
+	
+	<!-- 결제 성공 -->
+	<!-- 결제 테이블에 넣기 -->
+	
+	<!-- 결제 취소 -->
+	<!-- 취소테이블에 넣기 + coupon orderCode = null 로 변경 -->
+	
+	<select id="classInfo" parameterType="Integer" resultType="com.sp.yorizori.payment.Payment">
+		SELECT classCode, userId classUser, classSubject, price 
+			FROM classTable WHERE classCode = #{classCode}
+	</select>
+	
+	<select id="listcoupon" parameterType="String" resultType="com.sp.yorizori.payment.Payment">
+		SELECT c.eventNum, couponName, discountprice, uc.userId userId
+		    FROM coupon c
+		    LEFT OUTER JOIN (
+		        SELECT eventNum, userId, orderCode FROM userCoupon 
+		    ) uc ON uc.eventNum = c.eventNum
+		WHERE uc.userId = #{userId} AND (orderCode IS NULL AND expireTime &gt; SYSDATE)
+	</select>
+	
+	<select id="readcoupon" parameterType="Integer" resultType="com.sp.yorizori.payment.Payment">
+		SELECT eventNum, couponName, discountPrice FROM coupon WHERE eventNum = #{eventNum}
+	</select>
+	
+</mapper>

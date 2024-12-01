@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="festival">
+	<select id="seq" resultType="Integer">
+		SELECT festival_seq.NEXTVAL FROM dual
+	</select>
+
+	<insert id="insertFest" parameterType="com.sp.yorizori.festival.Festival">
+		INSERT INTO festival(festivalNum, festivalName, festivalContent, startDate, 
+			endDate, festivalHost, festivalSite, addr, place, latitude, longitude) 
+		VALUES (#{num}, #{name}, #{content}, #{start_date}, 
+			#{end_date}, #{host}, #{site, jdbcType=VARCHAR}, #{addr}, #{place}, #{latitude}, #{longitude})
+	</insert>
+	
+	<sql id="where-list">
+		<choose>
+			<when test="menu == 'ing'">
+				( TO_CHAR(startDate, 'YYYYMMDD') &lt; SYSDATE
+					AND TO_CHAR(endDate, 'YYYYMMDD') &gt; SYSDATE )
+			</when>
+			<when test="menu == 'before'">
+				TO_CHAR(startDate, 'YYYYMMDD') &gt; SYSDATE
+			</when>
+			<otherwise>
+				TO_CHAR(endDate, 'YYYYMMDD') &lt; SYSDATE
+			</otherwise>
+		</choose>
+	</sql>
+	
+	<sql id="order-list">
+		<choose>
+			<when test="menu == 'ing'">
+				ORDER BY endDate ASC, startDate ASC
+			</when>
+			<when test="menu == 'before'">
+				ORDER BY startDate ASC, endDate ASC
+			</when>
+			<otherwise>
+				ORDER BY endDate DESC, startDate DESC
+			</otherwise>
+		</choose>
+	</sql>
+	
+	<select id="dataCount" parameterType="map" resultType="Integer">
+		SELECT NVL(COUNT(*), 0)
+		FROM festival
+		<where>
+			<if test="menu != null and menu != ''">
+				<include refid="where-list"/>
+			</if>
+		</where>
+	</select>
+	
+	<select id="listFest" parameterType="map" resultType="com.sp.yorizori.festival.Festival">
+		SELECT * FROM (
+			SELECT ROWNUM rnum, tb.* FROM (
+				SELECT festivalNum num, festivalName name, 
+					TO_CHAR(startDate, 'YYYY.MM.DD') start_date, 
+					TO_CHAR(endDate, 'YYYY.MM.DD') end_date
+				FROM festival
+				<where>
+					<if test="menu != null and menu != ''">
+						<include refid="where-list"/>
+					</if>
+				</where>
+				<include refid="order-list"/>
+			) tb WHERE ROWNUM &lt;= #{end}
+		) WHERE rnum &gt;= #{start}	
+	</select>
+	
+	<select id="searchFest" parameterType="map" resultType="com.sp.yorizori.festival.Festival">
+		SELECT * FROM (
+			SELECT ROWNUM rnum, tb.* FROM (
+				SELECT festivalNum num, festivalName name
+				FROM festival
+				<where>
+					<if test="menu != null and menu != ''">
+						<include refid="where-list"/>
+					</if>
+				</where>
+				<include refid="order-list"/>
+			) tb WHERE ROWNUM &lt;= #{end}
+		) WHERE rnum &gt;= #{start}	AND num = #{num}
+	</select>
+	
+	<select id="readFest" parameterType="Integer" resultType="com.sp.yorizori.festival.Festival">
+		SELECT f.festivalNum num, NVL(festLikeCount, 0) festLikeCount, NVL(replyCount, 0) replyCount, festivalName name, festivalContent content, 
+		    TO_CHAR(startDate, 'YYYY.MM.DD') start_date, 
+		    TO_CHAR(endDate, 'YYYY.MM.DD') end_date, festivalHost host, 
+		    festivalSite site, addr, place, latitude, longitude
+		FROM festival f
+		LEFT OUTER JOIN (
+		    SELECT l.festivalnum, COUNT(*) festLikeCount
+		    FROM festivalLike l
+		    GROUP BY l.festivalnum
+		) l ON f.festivalNum = l.festivalnum
+		LEFT OUTER JOIN (
+		    SELECT r.festivalnum, COUNT(*) replyCount
+		    FROM festivalReply r
+		    GROUP BY r.festivalnum
+		) r ON f.festivalNum = r.festivalnum
+		WHERE f.festivalNum = #{num}
+	</select>
+	
+	<select id="preReadFest" parameterType="map" resultType="com.sp.yorizori.festival.Festival">
+		SELECT * FROM (
+			SELECT * FROM (
+				SELECT ROWNUM rnum, tb.* FROM (
+					SELECT festivalNum num, festivalName name
+					FROM festival
+					<where>
+						<if test="menu != null and menu != ''">
+							<include refid="where-list"/>
+						</if>
+					</where>
+					<include refid="order-list"/>
+				) tb WHERE ROWNUM &lt;= #{end}
+			) WHERE rnum &gt;= #{start}	AND rnum &lt; #{rnum}
+			ORDER BY rnum DESC
+		) WHERE ROWNUM = 1
+	</select>
+	
+	<select id="nextReadFest" parameterType="map" resultType="com.sp.yorizori.festival.Festival">
+		SELECT * FROM (
+			SELECT * FROM (
+				SELECT ROWNUM rnum, tb.* FROM (
+					SELECT festivalNum num, festivalName name
+					FROM festival
+					<where>
+						<if test="menu != null and menu != ''">
+							<include refid="where-list"/>
+						</if>
+					</where>
+					<include refid="order-list"/>
+				) tb WHERE ROWNUM &lt;= #{end}
+			) WHERE rnum &gt;= #{start}	AND rnum &gt; #{rnum}
+			ORDER BY rnum ASC
+		) WHERE ROWNUM = 1
+	</select>
+	
+	<update id="updateFest" parameterType="com.sp.yorizori.festival.Festival">
+		UPDATE festival SET festivalName=#{name}, festivalContent=#{content}, 
+			startDate=#{start_date}, endDate=#{end_date}, festivalHost=#{host}, 
+			festivalSite=#{site}, addr=#{addr}, place=#{place}, 
+			latitude=#{latitude}, longitude=#{longitude}
+		WHERE festivalNum = #{num}
+	</update>
+	
+	<delete id="deleteFest" parameterType="Integer">
+		DELETE FROM festival WHERE festivalNum = #{num}
+	</delete>
+	
+	<!-- 관심 -->
+	<insert id="insertFestLike" parameterType="map">
+		INSERT INTO festivalLike(userId, festivalNum) VALUES (#{userId}, #{num})
+	</insert>
+	
+	<delete id="deleteFestLike" parameterType="map">
+		DELETE FROM festivalLike WHERE userId=#{userId} AND festivalNum=#{num}
+	</delete>
+	
+	<select id="festLikeCount" parameterType="Integer" resultType="Integer">
+		SELECT NVL(COUNT(*), 0) festLikeCount FROM festivalLike WHERE festivalNum=#{num}
+	</select>
+	
+	<select id="userFestLiked" parameterType="map" resultType="Integer">
+		SELECT COUNT(*) FROM festivalLike WHERE userId=#{userId} AND festivalNum=#{num}
+	</select>
+	
+	<!-- 파일 -->
+	<insert id="insertFile" parameterType="com.sp.yorizori.festival.Festival">
+		INSERT INTO festivalPhoto(festivalPhotoNum, festivalNum, festivalPhotoName)
+		VALUES (festivalPhoto_seq.NEXTVAL, #{num}, #{fileName})
+	</insert>
+	
+	<select id="listFile" parameterType="Integer" resultType="com.sp.yorizori.festival.Festival">
+		SELECT festivalPhotoNum fileNum, festivalPhotoName fileName
+		FROM festivalPhoto
+		WHERE festivalNum = #{num}
+		ORDER BY fileNum ASC
+	</select>
+	
+	<select id="searchFile" parameterType="Integer" resultType="com.sp.yorizori.festival.Festival">
+		SELECT ROWNUM rnum, tb.* FROM (
+		    SELECT festivalPhotoName fileName
+		    FROM festivalPhoto
+		    WHERE festivalNum = #{num}
+		    ORDER BY festivalPhotoNum
+		) tb WHERE ROWNUM = 1
+	</select>
+	
+	<select id="readFile" parameterType="Integer" resultType="com.sp.yorizori.festival.Festival">
+		SELECT festivalPhotoNum fileNum, festivalPhotoName fileName
+		FROM festivalPhoto
+		WHERE festivalPhotoNum = #{fileNum}
+	</select>
+	
+	<delete id="deleteFile" parameterType="map">
+		DELETE FROM festivalPhoto WHERE ${field} = #{num}
+	</delete>
+	
+	<!-- 댓글 -->
+	<insert id="insertReply" parameterType="com.sp.yorizori.festival.Reply">
+		INSERT INTO festivalReply(replyNum, userId, replyContent, reg_date, festivalNum)
+		VALUES (festivalReply_seq.NEXTVAL, #{userId}, #{content}, SYSDATE, #{num})
+	</insert>
+	
+	<select id="replyCount" parameterType="map" resultType="Integer">
+		SELECT NVL(COUNT(*), 0) 
+		FROM festivalReply 
+		WHERE festivalNum = #{num}
+	</select>
+	
+	<select id="listReply" parameterType="map" resultType="com.sp.yorizori.festival.Reply">
+		SELECT * FROM (
+		    SELECT ROWNUM rnum, tb.* FROM (
+		        SELECT replyNum, r.userId, nickName, replyContent content, memberImageName userImageName,
+		            TO_CHAR(reg_date, 'YYYY-MM-DD hh:mm') reg_date, festivalNum num
+		        FROM festivalReply r
+		        LEFT OUTER JOIN (
+		            SELECT m.userId, nickName
+		            FROM member m
+		        ) m ON r.userId = m.userId
+		        LEFT OUTER JOIN (
+		            SELECT i.userId, memberImageName
+		            FROM memberImage i
+		        ) i ON r.userId = i.userId
+		        WHERE festivalNum = #{num}
+		        ORDER BY replyNum DESC
+		    ) tb WHERE ROWNUM &lt;= #{end}
+		) WHERE rnum &gt;= #{start}
+	</select>
+	
+	<delete id="deleteReply" parameterType="map">
+		DELETE FROM festivalReply
+		WHERE replyNum = #{replyNum}
+	</delete>
+</mapper>

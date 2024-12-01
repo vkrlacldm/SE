@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="userContest">
+	<select id="seq" resultType="Integer">
+		SELECT participation_seq.NEXTVAL FROM dual
+	</select>
+	
+	<insert id="insertContest" parameterType="com.sp.yorizori.user.contest.Contest">
+		INSERT INTO participation (partNum, userId, reg_date, partContent, contestNum) 
+		VALUES (#{partNum}, #{userId}, #{reg_date}, #{partContent}, #{contestNum})
+	</insert>
+
+	<select id="readContest" parameterType="Integer" resultType="com.sp.yorizori.user.contest.Contest">
+		SELECT partNum, userId, reg_date, partContent, contestNum
+		FROM participation
+		WHERE partNum = #{partNum}
+	</select>
+	
+		<update id="updateContest" parameterType="com.sp.yorizori.user.contest.Contest">
+		UPDATE participation SET partContent=#{partContent}, contestNum=#{contestNum},
+		WHERE partNum = #{partNum}
+	</update>
+	
+	<delete id="deleteContest" parameterType="Integer">
+		DELETE FROM participation WHERE partNum = #{partNum}
+	</delete>
+	
+	<!-- 파일 -->
+	<insert id="insertFile" parameterType="com.sp.yorizori.user.contest.Contest">
+		INSERT INTO participationPhoto(partPhotoNum, partPhotoName, partNum)
+		VALUES (participationPhoto_seq.NEXTVAL, #{partPhotoName}, #{partNum})
+	</insert>
+	
+	<select id="listFile" parameterType="Integer" resultType="com.sp.yorizori.user.contest.Contest">
+		SELECT participationPhoto partPhotoNum, partPhotoName 
+		FROM participationPhoto
+		WHERE partNum = #{partNum}
+	</select>
+	
+	<select id="searchFile" parameterType="Integer" resultType="com.sp.yorizori.user.contest.Contest">
+		SELECT ROWNUM rnum, tb.* FROM (
+		    SELECT partPhotoName fileName
+		    FROM participationPhoto
+		    WHERE partNum = #{partNum}
+		    ORDER BY partPhotoNum
+		) tb WHERE ROWNUM = 1
+	</select>
+	
+	<select id="readFile" parameterType="Integer" resultType="com.sp.yorizori.user.contest.Contest">
+		SELECT partPhotoNum fileNum, partPhotoName fileName
+		FROM participationPhoto
+		WHERE partPhotoNum = #{fileNum}
+	</select>
+	
+	<delete id="deleteFile" parameterType="map">
+		DELETE FROM participationPhoto WHERE ${field} = #{num}
+	</delete>
+	
+
+</mapper>

@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="memberManage">
+	<sql id="where-list">
+		<choose>
+			<when test="condition=='userId'">
+				INSTR(userId, #{keyword}) &gt;= 1
+			</when>
+			<otherwise>
+				INSTR(${condition}, #{keyword}) &gt;= 1
+			</otherwise>
+		</choose>
+	</sql>
+	
+	<select id="dataCount" resultType="Integer" parameterType="map">
+		SELECT COUNT(*) FROM member
+		<where>
+			<if test="keyword!=null and keyword!='' ">
+				<include refid="where-list"/>
+			</if>
+			<if test="enabled!=''">
+				AND enabled = #{enabled}
+			</if>					
+			
+			AND userId != 'admin'
+		</where>
+	</select>
+	
+	<select id="listMember" parameterType="map" 
+			resultType="com.sp.yorizori.admin.memberManage.Member">
+		SELECT * FROM (
+			SELECT ROWNUM rnum, tb.* FROM (
+				SELECT userId, userPwd, userName, nickName, 
+					tel, TO_CHAR(birth, 'YYYY-MM-DD') birth, 
+					addr1, addr2, zip, TO_CHAR(register_date, 'YYYY-MM-DD') register_date, 
+					modify_date, last_login, email, role, failure_cnt, enabled				
+				FROM member 
+				<where>
+					<if test="keyword!=null and keyword!='' ">
+						<include refid="where-list"/>
+					</if>
+					<if test="enabled!=''">
+						AND enabled = #{enabled}
+					</if>					
+					AND userId != 'admin'
+				</where> 
+				ORDER BY register_date DESC
+			) tb WHERE ROWNUM &lt;= #{end}
+		) WHERE rnum &gt;= #{start}
+	</select>
+	
+	<select id="readMember" parameterType="String" 
+			resultType="com.sp.yorizori.admin.memberManage.Member">
+		SELECT userId, userPwd, userName, nickName, 
+			tel, TO_CHAR(birth, 'YYYY-MM-DD') birth, 
+			addr1, addr2, zip, TO_CHAR(register_date, 'YYYY-MM-DD') register_date, 
+			modify_date, last_login, email, role, failure_cnt, enabled				
+		FROM member
+		WHERE userId = #{userId}
+	</select>
+	
+	<update id="updateFailureCountReset" parameterType="String">
+		UPDATE member SET failure_cnt = 0
+		WHERE userId = #{userId}
+	</update>
+	
+	<update id="updateMemberEnabled" parameterType="map">
+		UPDATE member SET enabled=#{enabled} WHERE userId=#{userId}
+    </update>
+    
+    <insert id="insertMemberState" parameterType="com.sp.yorizori.admin.memberManage.Member">
+		INSERT INTO memberState(num, userId, stateCode, memo, reg_date)
+		VALUES (memberState_seq.NEXTVAL, #{userId}, #{stateCode}, #{memo}, SYSDATE)
+	</insert>    
+  
+	<select id="listMemberState" parameterType="String" 
+			resultType="com.sp.yorizori.admin.memberManage.Member">
+		SELECT num, userId, stateCode, memo, reg_date
+		FROM memberState 
+
+		WHERE userId = #{userId}
+		ORDER BY num DESC
+	</select>
+	
+	<select id="readMemberState" parameterType="String" 
+			resultType="com.sp.yorizori.admin.memberManage.Member">
+		SELECT * FROM (
+			SELECT num, userId, stateCode, memo, reg_date
+			FROM memberState
+			
+			WHERE userId = #{userId}
+			ORDER BY num DESC
+		) WHERE ROWNUM = 1
+	</select>
+
+</mapper>

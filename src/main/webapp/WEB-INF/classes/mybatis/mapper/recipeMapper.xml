@@ -1,0 +1,270 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="recipe">
+	<!-- 재료시퀀스 -->
+	<select id="recipeseq" resultType="Integer">
+		SELECT recipe_seq.NEXTVAL FROM dual
+	</select>
+	<!-- 상황별 카테고리 -->
+	<select id="listcaseCategory" parameterType="map" resultType="com.sp.yorizori.recipe.Recipe">
+		SELECT caseNum, caseName FROM caseCategory
+			ORDER BY caseNum
+	</select>
+	
+	<!-- 나라별 카테고리 -->
+	<select id="listcountryCategory" parameterType="map" resultType="com.sp.yorizori.recipe.Recipe">
+		SELECT countryNum, countryName FROM countryCategory
+			ORDER BY countryNum
+	</select>
+	
+	<!-- 재료 카테고리 -->
+	<select id="listingredient" parameterType="map" resultType="com.sp.yorizori.recipe.Recipe">
+		SELECT ingredientCode, ingredientName, NVL(parent, 0) parent, ingredimageName
+		FROM ingredient
+		<where>
+			<choose>
+				<when test="parent==null">
+					parent IS NULL
+				</when>
+				<otherwise>
+					parent = #{parent}
+				</otherwise>
+			</choose>
+		</where>
+		ORDER BY ingredientCode
+	</select>
+	
+	<!-- 레시피 등록 -->
+	<insert id="insertRecipe" parameterType="com.sp.yorizori.recipe.Recipe">
+		INSERT INTO recipe (recipeNum, caseNum, countryNum, recipeSubject, recipeHitcount, 
+			recipeReg_date, 
+			recipeServing, recipeLevel, 
+			recipeContent, recipeTime,userId, active) VALUES 
+   		(#{recipeNum}, #{caseNum}, #{countryNum}, #{recipeSubject}, 0, SYSDATE, 
+   		#{recipeServing}, #{recipeLevel}, #{recipeContent}, #{recipeTime}, #{userId}, 0)
+	</insert>
+	
+	<!-- 레시피 포토 등록 -->
+	<insert id="insertRecipePhoto" parameterType="com.sp.yorizori.recipe.Recipe">
+		INSERT INTO recipePhoto (recipenum, recipephotoName) VALUES (#{recipeNum}, #{imageFilename, jdbcType=VARCHAR})
+	</insert>
+	
+	<!-- 재료 리스트 수정 -->
+	<delete id="deleteRecipeingredientList" parameterType="Integer">
+		DELETE FROM ingredientList WHERE recipeNum = #{recipeNum}
+	</delete>
+	
+	<!-- 레시피 재료 등록 -->
+	<insert id="insertingredientList" parameterType="com.sp.yorizori.recipe.Recipe">
+		INSERT INTO ingredientList (num, recipeNum , ingredientCode) VALUES (ingredientList_seq.NEXTVAL, #{recipeNum}, #{ingredientCode})
+	</insert>
+	
+	<!-- 좋아요 개수 -->
+	<select id="recipeLikeCount" resultType="Integer">
+		SELECT NVL(COUNT(*), 0) recipeLikeCount FROM recipeLike WHERE recipeNum = #{recipeNum}
+	</select>
+	
+	<!-- 해당 유저가 좋아요했는지 여부 -->
+	<select id="isRecipeLike" parameterType="map" resultType="Integer">
+		SELECT NVL(COUNT(*), 0) FROM recipeLike WHERE recipeNum = #{recipeNum} AND userId = #{userId}
+	</select>
+	
+	<insert id="insertRecipeLike" parameterType="map">
+		INSERT INTO recipeLike(recipeNum, userId) VALUES (#{recipeNum}, #{userId})
+	</insert>
+	
+	<delete id="deleteRecipeLike" parameterType="map">
+		DELETE FROM recipeLike WHERE recipeNum = #{recipeNum} AND userId = #{userId}
+	</delete>
+	
+	<!-- 팔로우 유무 -->
+	<select id="isFollow" parameterType="map" resultType="Integer">
+		SELECT NVL(COUNT(*), 0) FROM follow WHERE follower_id = #{userId}
+	</select>
+	
+	<select id="dataCount" resultType="Integer" parameterType="map">
+		SELECT NVL(COUNT(*), 0)
+		FROM recipe
+	</select>
+	
+	<!-- feed -->
+	<select id="listRecipeFeed" resultType="com.sp.yorizori.recipe.Recipe" parameterType="map">
+		
+		SELECT * FROM (
+		    SELECT ROWNUM rnum, tb.* FROM (
+		        SELECT r.recipeNum recipeNum, r.countryNum countryNum, recipeSubject, nickName, memberImageName, imageFilename, 
+		            NVL(recipeLikeCount, 0) recipeLikeCount, NVL(userRecipeLike, 0) userRecipeLike, r.userId userId
+		            FROM recipe r
+		            JOIN member m ON m.userId = r.userId
+		            LEFT OUTER JOIN (
+		                SELECT recipeNum, COUNT(*) recipeLikeCount FROM recipeLike
+		                GROUP BY recipeNum
+		            ) rl ON rl.recipeNum = r.recipeNum  
+		            LEFT OUTER JOIN (
+		                SELECT userId, memberImageName FROM memberImage 
+		            ) mi ON mi.userId = r.userId
+		            LEFT OUTER JOIN (
+		                SELECT recipeNum, recipePhotoName imageFilename FROM recipePhoto
+		            ) rp ON r.recipeNum = rp.recipeNum
+		            LEFT OUTER JOIN (
+		                SELECT recipeNum, NVL(COUNT(*), 0) userRecipeLike FROM recipeLike ur
+		                	WHERE ur.userId = #{userId}
+		                GROUP BY recipeNum
+		            ) ur ON r.recipeNum = ur.recipeNum
+		            ORDER BY recipeLikeCount DESC
+		        ) tb WHERE ROWNUM &lt;= #{end}
+		) WHERE rnum &gt;= #{start}
+		
+	</select>
+	
+	<select id="readRecipe" parameterType="Integer" resultType="com.sp.yorizori.recipe.Recipe">
+		SELECT r.recipeNum recipeNum, caseNum, countryNum, recipeSubject, recipeHitCount, 
+			TO_CHAR(recipeReg_date, 'YYYY-MM-DD') recipeReg_date, recipeServing, imageFilename,
+	       	recipeTime, recipeLevel, recipeContent, r.userId userId, nickName, 
+	       	memberImageName, NVL(recipeLikeCount, 0) recipeLikeCount,
+	        NVL(replyCount, 0) replyCount
+	    		FROM recipe r
+		    LEFT OUTER JOIN (
+		        SELECT recipeNum, COUNT(*) recipeLikeCount FROM recipeLike rl
+		        GROUP BY recipeNum
+		    ) rl ON rl.recipeNum = r.recipeNum
+		    LEFT OUTER JOIN (
+		        SELECT userId, memberImageName FROM memberImage mi
+		    ) mi ON mi.userId = r.userId
+		    LEFT OUTER JOIN (
+	             SELECT recipeNum, recipePhotoName imageFilename FROM recipePhoto
+	        ) rp ON r.recipeNum = rp.recipeNum
+	        LEFT OUTER JOIN (
+	             SELECT recipeNum, COUNT(*) replyCount FROM recipeComment
+	             WHERE parentCommentNum = 0
+	             GROUP BY recipeNum
+	        ) rc ON r.recipeNum = rc.recipeNum
+		    LEFT OUTER JOIN (
+		        SELECT userId, nickName FROM member m
+		    ) m ON m.userId = r.userId
+	    WHERE r.recipeNum = #{recipeNum}
+	</select>
+	
+	<select id="preReadRecipe" parameterType="map" resultType="com.sp.yorizori.recipe.Recipe">
+		
+	</select>
+	
+	<select id="nextReadRecipe" parameterType="map" resultType="com.sp.yorizori.recipe.Recipe">
+		
+	</select>
+	
+	<update id="updateHitCount" parameterType="Integer">
+		UPDATE recipe SET recipeHitCount = recipeHitCount+1 WHERE recipeNum = #{recipeNum}
+	</update>
+	
+	<select id="readRecipeingredient" parameterType="Integer" resultType="com.sp.yorizori.recipe.Recipe">
+		SELECT recipeNum, il.ingredientCode ingredientCode, ingredientName, parent
+		    FROM ingredientList il
+		    LEFT OUTER JOIN (
+		        SELECT ingredientCode, ingredientName, parent FROM ingredient i
+		    ) i ON i.ingredientCode = il.ingredientCode
+		WHERE recipeNum = #{recipeNum} AND parent &lt;&gt; 100
+	</select>
+	
+	<select id="readRecipeseasoning" parameterType="Integer" resultType="com.sp.yorizori.recipe.Recipe">
+		SELECT recipeNum, il.ingredientCode ingredientCode, ingredientName, parent
+		    FROM ingredientList il
+		    LEFT OUTER JOIN (
+		        SELECT ingredientCode, ingredientName, parent FROM ingredient i
+		    ) i ON i.ingredientCode = il.ingredientCode
+		WHERE recipeNum = #{recipeNum} AND parent = 100
+	</select>
+	
+	<select id="updateRecipeingredient" parameterType="Integer" resultType="com.sp.yorizori.recipe.Recipe">
+		SELECT recipeNum, il.ingredientCode ingredientCode, ingredientName, parent
+		    FROM ingredientList il
+		    LEFT OUTER JOIN (
+		        SELECT ingredientCode, ingredientName, parent FROM ingredient i
+		    ) i ON i.ingredientCode = il.ingredientCode
+		WHERE recipeNum = #{recipeNum}
+	</select>
+	
+	<delete id="deleteRecipe" parameterType="Integer">
+		DELETE FROM recipe WHERE recipeNum = #{recipeNum}
+	</delete>
+	
+	<update id="updateRecipe" parameterType="com.sp.yorizori.recipe.Recipe">
+		UPDATE recipe
+		    SET 
+		    caseNum = #{caseNum},
+		    countryNum = #{countryNum},
+		    recipeSubject = #{recipeSubject},
+		    recipeServing = #{recipeServing},
+		    recipeTime = #{recipeTime},
+		    recipeLevel = #{recipeLevel}, 
+		    recipeContent  = #{recipeContent}
+		WHERE recipeNum = #{recipeNum}
+	</update>
+	
+	<update id="updateRecipePhoto" parameterType="com.sp.yorizori.recipe.Recipe">
+		UPDATE recipePhoto
+		    SET 
+		    recipePhotoName = #{imageFilename, jdbcType=VARCHAR}
+		WHERE recipeNum = #{recipeNum}
+	</update>
+	
+	<!-- 댓글 -->
+	<insert id="insertReply" parameterType="com.sp.yorizori.recipe.Reply">
+		INSERT INTO recipeComment (recipeCommentNum, commentContent, commentReg_date, parentCommentNum, recipeNum, userId)
+			VALUES
+		(recipeComment_seq.NEXTVAL, #{commentContent}, SYSDATE, #{parentCommentNum}, #{recipeNum}, #{userId})
+	</insert>
+	
+	<select id="replyCount" parameterType="map" resultType="Integer">
+		SELECT NVL(COUNT(*), 0) FROM recipeComment
+		WHERE recipeNum = #{recipeNum} AND parentCommentNum=0
+	</select>
+	
+	<!-- 댓글 리스트 -->
+	<select id="listReply" parameterType="map" resultType="com.sp.yorizori.recipe.Reply">
+		SELECT * FROM (
+		    SELECT ROWNUM rnum, tb.* FROM (
+		        SELECT rc.recipeCommentNum, rc.userId, m.nickName, 
+		            rc.recipeNum, commentContent, commentReg_date, NVL(answerCount, 0) answerCount
+		            
+		        FROM recipeComment rc
+		        JOIN member m ON rc.userId = m.userId
+		        
+		        LEFT OUTER JOIN (
+		            SELECT a.parentCommentNum, COUNT(*) answerCount
+		            FROM recipeComment a
+		            group by a.parentCommentNum
+		        ) a ON rc.recipeCommentNum = a.parentCommentNum 
+		        
+		        WHERE rc.recipeNum = #{recipeNum} AND rc.parentCommentNum = 0
+		       
+		        ORDER BY rc.recipeCommentNum DESC
+		    ) tb WHERE ROWNUM &lt;= #{end}
+		) WHERE rnum &gt;= #{start}
+	</select>
+	
+	<delete id="deleteReply" parameterType="map">
+		DELETE FROM recipeComment
+		WHERE recipeCommentNum = #{recipeCommentNum}
+		<if test="mode=='reply'">
+			OR answer=#{recipeCommentNum}
+		</if>
+	</delete>
+	
+	<select id="listReplyAnswer" parameterType="Integer" resultType="com.sp.yorizori.recipe.Reply">
+		SELECT recipeCommentNum, rc.userId, m.nickName, recipeNum, commentContent, commentReg_date, parentCommentNum
+			FROM recipeComment rc
+			JOIN member m ON rc.userId = m.userId
+		WHERE parentCommentNum = #{parentCommentNum}
+		ORDER BY recipeCommentNum DESC
+	</select>
+	
+	<select id="replyAnswerCount" parameterType="Integer" resultType="Integer">
+		SELECT NVL(COUNT(*), 0) 
+			FROM recipeComment 
+		WHERE parentCommentNum = #{parentCommentNum}
+	</select>
+	
+	
+</mapper>

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="frige">
+
+	<select id="recipeseq" resultType="Integer">
+		SELECT recipe_seq.NEXTVAL FROM dual
+	</select>
+	
+	<insert id="IngredientList" parameterType="com.sp.yorizori.frige.Frige">
+		INSERT INTO ingredientList (num, recipeNum , ingredientCode) VALUES (ingredientList_seq.NEXTVAL, #{recipeNum}, #{ingredientCode})
+	</insert>
+	
+	<select id="listIngredient" resultType="com.sp.yorizori.frige.Frige">
+		SELECT ingredientCode, ingredientName, NVL(parent, 0) parent, ingredimageName
+		FROM ingredient
+		WHERE parent != 0
+		ORDER BY ingredientCode
+	</select>
+
+	<insert id="insertRecipe" parameterType="com.sp.yorizori.frige.Frige">
+		INSERT INTO recipe (recipeNum, caseNum, countryNum, recipeSubject, recipeHitcount, TO_CHAR(recipeReg_date, 'YYYY-MM-DD') recipeReg_date, recipeServing, recipeLevel, 
+   			 recipeContent, recipeTime,userId, active) VALUES 
+   		(#{recipeNum}, #{caseNum}, #{countryNum}, #{recipeSubject}, 0, SYSDATE, 
+   		#{recipeServing}, #{recipeLevel}, #{recipeContent}, #{recipeTime}, #{userId}, 0)
+	</insert>
+	
+
+	<insert id="insertRecipePhoto" parameterType="com.sp.yorizori.frige.Frige">
+		INSERT INTO recipePhoto (recipeNum, recipephotoName) VALUES (#{recipeNum}, #{imageFilename, jdbcType=VARCHAR})
+	</insert>
+	
+
+	<select id="dataCount" resultType="Integer" parameterType="map">
+		SELECT COUNT(*)
+		FROM recipe r
+        JOIN ingredientList il ON r.recipeNum = il.recipeNum
+		JOIN member m ON m.userId = r.userId
+		WHERE ingredientCode IN
+			<foreach collection="list" item="ingredientCode" separator="," open="(" close=")">
+				#{ingredientCode}
+			</foreach>
+	</select>
+ 
+	<select id="listRecipe" parameterType="map" resultType="com.sp.yorizori.frige.Frige">
+        SELECT r.recipeNum, r.userId, recipeSubject, ingredientCode, recipePhotoName imageFilename, 
+            nickName
+        FROM recipe r
+        JOIN ingredientList il ON r.recipeNum = il.recipeNum
+        LEFT OUTER JOIN (
+            SELECT p.recipeNum, recipePhotoName
+            FROM recipePhoto p
+        ) p ON r.recipeNum = p.recipeNum
+        LEFT OUTER JOIN (
+            SELECT m.userId, nickName
+            FROM member m
+        ) m ON r.userId = m.userId
+		WHERE ingredientCode IN
+			<foreach collection="list" item="ingredientCode" separator="," open="(" close=")">
+				#{ingredientCode}
+			</foreach>
+		</select>
+	
+	
+
+</mapper>

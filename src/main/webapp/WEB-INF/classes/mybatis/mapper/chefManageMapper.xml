@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="chefManage">
+	<sql id="where-list">
+		<choose>
+			<when test="condition=='userId'">
+				INSTR(#{userId), #{keyword}) &gt;= 1
+			</when>
+			<otherwise>
+				INSTR(${condition}, #{keyword}) &gt;= 1
+			</otherwise>
+		</choose>
+	</sql>
+	
+	<select id="dataCount" resultType="Integer" parameterType="map">
+		select count(a.*)
+		  from member a,
+		       chefApply b
+		 where 1=1
+		   and a.userId=b.userId
+
+		<where>
+			<if test="keyword!=null and keyword!='' ">
+				<include refid="where-list"/>
+			</if>
+		</where>
+	</select>
+	
+	<select id="listChef" parameterType="map" resultType="com.sp.yorizori.admin.chefManage.Chef">
+	 select a.userId, a.userPwd, a.userName, a.nickName, 
+					a.tel, TO_CHAR(a.birth, 'YYYY-MM-DD') birth, 
+					a.addr1, a.addr2, a.zip, TO_CHAR(a.register_date, 'YYYY-MM-DD') register_date, 
+					a.modify_date, a.last_login, a.email, a.role, a.failure_cnt, a.enabled, b.intro, b.accept,
+					(select count(c.userId) from recipe c where c.userId=a.userId) recipeCount,
+					(select count(c.follower_id) from follow c where a.userId=c.follower_id) followCount,
+					(select count(c.userId) from  classTable c where c.userId=a.userId) classCount
+					
+				   from member a,
+				        chefApply b
+				  where a.userId=b.userId
+
+				<where>
+					<if test="keyword!=null and keyword!='' ">
+						<include refid="where-list"/>
+					</if>
+				
+				</where> 
+				ORDER BY register_date DESC
+	</select>
+	
+	<select id="readChef" parameterType="String"
+			resultType="com.sp.yorizori.admin.chefManage.Chef">
+		 select a.userId, a.userPwd, a.userName, a.nickName, 
+					a.tel, TO_CHAR(a.birth, 'YYYY-MM-DD') birth, 
+					a.addr1, a.addr2, a.zip, TO_CHAR(a.register_date, 'YYYY-MM-DD') register_date, 
+					a.modify_date, a.last_login, a.email, a.role, a.failure_cnt, a.enabled, b.intro, b.accept
+				   from member a,
+				        chefApply b
+				  where a.userId=b.userId
+				  	and a.userId=#{userId}
+	</select>
+	
+	<update id="updateFailureCountReset" parameterType="String">
+		UPDATE member SET failure_cnt = 0
+		WHERE userId = #{userId}
+	</update>
+	
+	<update id="updateChefEnabled" parameterType="map">
+		UPDATE chefApply SET accept=#{accept} WHERE userId=#{userId}
+    </update>
+	<update id="updateMemberRole" parameterType="map">
+		UPDATE member SET role=#{role} WHERE userId=#{userId}
+    </update>
+    
+    <insert id="insertChefState" parameterType="com.sp.yorizori.admin.chefManage.Chef">
+		INSERT INTO memberState(num, userId, stateCode, memo, reg_date)
+		VALUES (memberState_seq.NEXTVAL, #{userId}, #{stateCode}, #{memo}, SYSDATE)
+	</insert> 
+	
+	<select id="listChefState" parameterType="String" 
+			resultType="com.sp.yorizori.admin.chefManage.Chef">
+		SELECT num, userId, stateCode, memo, reg_date
+		FROM memberState 
+		WHERE userId = #{userId}
+		ORDER BY num DESC
+	</select>
+	
+	<select id="readChefState" parameterType="String" 
+			resultType="com.sp.yorizori.admin.chefManage.Chef">
+		SELECT * FROM (
+			SELECT num, userId, stateCode, memo, reg_date
+			FROM memberState
+			WHERE userId = #{userId}
+			ORDER BY num DESC
+		) WHERE ROWNUM = 1
+	</select>
+	
+	<select id="recipeCount" resultType="Integer" parameterType="map">
+		SELECT COUNT(*) FROM recipe
+		<where>
+			<if test="keyword!=null and keyword!='' ">
+				<include refid="where-list"/>
+			</if>
+		</where>
+	</select>
+	
+	<select id="followCount" resultType="Integer" parameterType="map">
+		SELECT COUNT(*) FROM follow
+		<where>
+			<if test="keyword!=null and keyword!='' ">
+				<include refid="where-list"/>
+			</if>
+		</where>
+	</select>
+	
+	<select id="classCount" resultType="Integer" parameterType="map">
+		SELECT COUNT(*) FROM classTable
+		<where>
+			<if test="keyword!=null and keyword!='' ">
+				<include refid="where-list"/>
+			</if>
+		</where>
+	</select>
+	
+</mapper>
